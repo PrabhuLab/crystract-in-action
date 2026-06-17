@@ -40,26 +40,26 @@ A large-scale analysis of naturally occurring Sulfides, Selenides, and Telluride
 Explore the standalone interactive Plotly visualizations exported directly from our Chalcogenide analysis workflow. **Click any link below to open the interactive chart:**
 
 ### 7. Global Visualization
-* [7.1 Pairwise Bond Lengths](plotly_exports/7_1_pairwise_lengths.html)
-* [7.2 Pairwise Bond Angles](plotly_exports/7_2_pairwise_angles.html)
+* [7.1 Pairwise Bond Lengths](minerals/plotly_exports/7_1_pairwise_lengths.html)
+* [7.2 Pairwise Bond Angles](minerals/plotly_exports/7_2_pairwise_angles.html)
 
 ### 8. Coordination Number Analysis
-* [8.1 Bond Length vs ECon CN](plotly_exports/8_1_regular_cn.html)
-* [8.2 Bond Length vs Weighted CN](plotly_exports/8_2_weighted_cn_z.html)
-* [8.3 Weighted CN Sorted by Global Bond Length](plotly_exports/8_3_weighted_cn_len.html)
+* [8.1 Bond Length vs ECon CN](minerals/plotly_exports/8_1_regular_cn.html)
+* [8.2 Bond Length vs Weighted CN](minerals/plotly_exports/8_2_weighted_cn_z.html)
+* [8.3 Weighted CN Sorted by Global Bond Length](minerals/plotly_exports/8_3_weighted_cn_len.html)
 
 ### 9. Chalcogen-Specific Analysis (S, Se, Te Centers)
-* [9.1 Average Bond Lengths](plotly_exports/9_1_chalc_center_len.html)
-* [9.2 Normalized Bond Lengths](plotly_exports/9_2_chalc_center_norm_len.html)
-* [9.3 ECon Coordination Number](plotly_exports/9_3_chalc_center_cn.html)
-* [9.4 Total vs Specific Weighted CN (All Chalcogens)](plotly_exports/9_4_chalc_center_wcn.html)
-  * [9.4.1 Specific WCN: Sulfur (S)](plotly_exports/9_4_1_chalc_wcn_s.html)
-  * [9.4.2 Specific WCN: Selenium (Se)](plotly_exports/9_4_2_chalc_wcn_se.html)
-  * [9.4.3 Specific WCN: Tellurium (Te)](plotly_exports/9_4_3_chalc_wcn_te.html)
-* [9.5 Bond Angles](plotly_exports/9_5_chalc_center_angles.html)
+* [9.1 Average Bond Lengths](minerals/plotly_exports/9_1_chalc_center_len.html)
+* [9.2 Normalized Bond Lengths](minerals/plotly_exports/9_2_chalc_center_norm_len.html)
+* [9.3 ECon Coordination Number](minerals/plotly_exports/9_3_chalc_center_cn.html)
+* [9.4 Total vs Specific Weighted CN (All Chalcogens)](minerals/plotly_exports/9_4_chalc_center_wcn.html)
+  * [9.4.1 Specific WCN: Sulfur (S)](minerals/plotly_exports/9_4_1_chalc_wcn_s.html)
+  * [9.4.2 Specific WCN: Selenium (Se)](minerals/plotly_exports/9_4_2_chalc_wcn_se.html)
+  * [9.4.3 Specific WCN: Tellurium (Te)](minerals/plotly_exports/9_4_3_chalc_wcn_te.html)
+* [9.5 Bond Angles](minerals/plotly_exports/9_5_chalc_center_angles.html)
 
 ### 11. Advanced Analysis
-* [11. Bond Length vs Angle Correlation (Neighbor Families)](plotly_exports/11_advanced_scatter.html)
+* [11. Bond Length vs Angle Correlation (Neighbor Families)](minerals/plotly_exports/11_advanced_scatter.html)
 
 ---
 
