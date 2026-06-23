@@ -144,6 +144,9 @@ check_chemistry <- function(file_path) {
     cif_content <- read_cif_files(file_path)[[1]]
     formula_str <- extract_chemical_formula(cif_content)
     
+    # NEW: Extract database code while the file is already parsed in memory
+    db_code <- extract_database_code(cif_content)
+    
     # Check actual atomic coordinates in files
     atoms <- extract_atomic_coordinates(cif_content, formula_str)
     if (is.null(atoms) || nrow(atoms) == 0) {
@@ -152,7 +155,8 @@ check_chemistry <- function(file_path) {
           File = basename(file_path),
           Path = file_path,
           Keep = FALSE,
-          Elements = NA_character_
+          Elements = NA_character_,
+          Database_Code = db_code
         )
       )
     }
@@ -171,19 +175,25 @@ check_chemistry <- function(file_path) {
     
     keep <- has_target && !has_oxygen
     
-    return(data.table(
-      File = basename(file_path),
-      Path = file_path,
-      Keep = keep,
-      Elements = paste(sort(valid_elements), collapse = ", ")
-    ))
+    return(
+      data.table(
+        File = basename(file_path),
+        Path = file_path,
+        Keep = keep,
+        Elements = paste(sort(valid_elements), collapse = ", "),
+        Database_Code = db_code
+      )
+    )
   }, error = function(e) {
-    return(data.table(
-      File = basename(file_path),
-      Path = file_path,
-      Keep = FALSE,
-      Elements = "Error"
-    ))
+    return(
+      data.table(
+        File = basename(file_path),
+        Path = file_path,
+        Keep = FALSE,
+        Elements = "Error",
+        Database_Code = "Read Error"
+      )
+    )
   })
 }
 
@@ -2015,4 +2025,38 @@ if (exists("final_bonds_data") &&
 } else {
   cat("No bond data available to extract high WCN files.")
 }
+```
+## 14. Export Database Codes
+
+```{r export-db-codes, message=FALSE, warning=FALSE}
+# Retrieve Database Codes strictly for the final valid files used in analysis
+final_db_codes <- filter_results[Path %in% target_files, .(File, Database_Code)]
+
+# Save the list to a CSV file in the output directory
+output_csv_path <- "~/Documents/cif_results/cif_database_codes.csv"
+if (!dir.exists(dirname(output_csv_path))) {
+  dir.create(dirname(output_csv_path), recursive = TRUE)
+}
+
+fwrite(final_db_codes, output_csv_path)
+
+cat(sprintf(
+  "Successfully saved %d database codes to: %s\n",
+  nrow(final_db_codes),
+  output_csv_path
+))
+
+# Display a preview in the HTML document
+datatable(
+  final_db_codes,
+  filter = 'top',
+  extensions = 'Buttons',
+  options = list(
+    pageLength = 10,
+    autoWidth = TRUE,
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel')
+  ),
+  caption = "Final Database Codes of Validated Chalcogenide CIFs"
+)
 ```
