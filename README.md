@@ -25,8 +25,8 @@ This repository contains the data, scripts, and results for two distinct case st
 ### 1. Materials Science: Clathrate I Type Compounds (`materials/`)
 In intermetallic clathrates, the covalent framework forms polyhedral cages that trap guest atoms. The distances within this lattice govern cage size and flexibility, directly influencing thermoelectric properties.
 * **Goal:** Confirm the linear scaling relationship between the lattice parameter and the average covalent network distance.
-* **Process:** Analyzed **704 CIF files** from the ICSD database. Because multiple crystallographic models represent the same clathrate topology (e.g., *6c-16i-24k* vs *24k-48l*), occupational and positional disorder is prevalent. We applied the `MinimumDistanceNN` algorithm and utilized the ghost filter to remove over 5.2 million non-physical artifacts.
-* **Result:** Processed all 704 files in ~155 seconds on a standard laptop. The analysis confirmed the linear structural trend and successfully identified the intrinsic network chemistry offset for "inverse" clathrates.
+* **Process:** Analyzed **703 CIF files** from the ICSD database. Because multiple crystallographic models represent the same clathrate topology (e.g., *6c-16i-24k* vs *24k-48l*), occupational and positional disorder is prevalent. We applied the `MinimumDistanceNN` algorithm and utilized the ghost filter to remove over 5.2 million non-physical artifacts.
+* **Result:** Processed all 703 files in ~155 seconds on a standard laptop. The analysis confirmed the linear structural trend and successfully identified the intrinsic network chemistry offset for "inverse" clathrates.
 
 ### 2. Mineralogy: Chalcogen Ores (`minerals/`)
 A large-scale structural analysis of naturally occurring Sulfides, Selenides, and Tellurides to investigate systematic variations in X–X bond distances as a function of cation size, coordination number, and chalcogen species.
@@ -41,7 +41,7 @@ A large-scale structural analysis of naturally occurring Sulfides, Selenides, an
 Explore the standalone interactive Plotly visualizations exported directly from our automated workflows. **Click any link below to open the interactive chart:**
 
 ### 🧱 Materials Science: Clathrates
-* [Clathrate I Type: Lattice Parameter vs. Average Network Bond Length](materials/interactive_report_files/interactive_clathrate_plot.html)
+* [Clathrate I Type: Lattice Parameter vs. Average Network Bond Length (Manuscript Figure 2))](materials/interactive_report_files/interactive_clathrate_plot.html)
 
 ### 🪨 Mineralogy: Chalcogen Ores
 #### Global Visualization
@@ -51,20 +51,20 @@ Explore the standalone interactive Plotly visualizations exported directly from 
 #### Coordination Number Analysis
 * [8.1 Bond Length vs ECon CN](minerals/plotly_exports/8_1_regular_cn.html)
 * [8.2 Bond Length vs Weighted CN](minerals/plotly_exports/8_2_weighted_cn_z.html)
-* [8.3 Weighted CN Sorted by Global Bond Length](minerals/plotly_exports/8_3_weighted_cn_len.html)
+* [8.3 Weighted CN Sorted by Global Bond Length (Manuscript Figure 3)](minerals/plotly_exports/8_3_weighted_cn_len.html)
 
 #### Chalcogen-Specific Analysis (S, Se, Te Centers)
-* [9.1 Average Bond Lengths](minerals/plotly_exports/9_1_chalc_center_len.html)
-* [9.2 Normalized Bond Lengths](minerals/plotly_exports/9_2_chalc_center_norm_len.html)
+* [9.1 Average Bond Lengths (Manuscript Figure 4)](minerals/plotly_exports/9_1_chalc_center_len.html)
+* [9.2 Normalized Bond Lengths (Manuscript Figure 4)](minerals/plotly_exports/9_2_chalc_center_norm_len.html)
 * [9.3 ECon Coordination Number](minerals/plotly_exports/9_3_chalc_center_cn.html)
-* [9.4 Total vs Specific Weighted CN (All Chalcogens)](minerals/plotly_exports/9_4_chalc_center_wcn.html)
+* [9.4 Total vs Specific Weighted CN (All Chalcogens) (Manuscript Figure 5)](minerals/plotly_exports/9_4_chalc_center_wcn.html)
   * [9.4.1 Specific WCN: Sulfur (S)](minerals/plotly_exports/9_4_1_chalc_wcn_s.html)
   * [9.4.2 Specific WCN: Selenium (Se)](minerals/plotly_exports/9_4_2_chalc_wcn_se.html)
   * [9.4.3 Specific WCN: Tellurium (Te)](minerals/plotly_exports/9_4_3_chalc_wcn_te.html)
 * [9.5 Bond Angles](minerals/plotly_exports/9_5_chalc_center_angles.html)
 
 #### Advanced Analysis
-* [11. Bond Length vs Angle Correlation (Neighbor Families)](minerals/plotly_exports/11_advanced_scatter.html)
+* [11. Bond Length vs Angle Correlation (Neighbor Families) (Manuscript Figure 6)](minerals/plotly_exports/11_advanced_scatter.html)
 
 ---
 
@@ -108,7 +108,7 @@ If you use `crystract` or the workflows provided in this repository, please cite
 
 **Data & Code:**
 * The core `crystract` R package source code is hosted at [PrabhuLab/ml-crystals](https://github.com/PrabhuLab/ml-crystals/tree/main/packages/crystract) and can be installed via CRAN (`install.packages("crystract")`).
-* The CIF files used for these case studies are derived from the Inorganic Crystal Structure Database (ICSD) and the American Mineralogist Crystal Structure Database (AMCSD).
+* The CIF files used for these case studies are derived from the Inorganic Crystal Structure Database (ICSD) and the American Mineralogist Crystal Structure Database (AMCSD). Comma-separated lists containing the specific database codes used can be found here: [Minerals Study](minerals_database_codes.csv) | [Materials Study](materials_database_codes.csv).
 
 ## 🤝 Acknowledgements
 JMH gratefully acknowledges discussions with Michael Baitinger, as well as funding by the Joachim Herz Foundation. DN has been supported by the Earth and Planetary Science Interdisciplinary Internship at Carnegie Science (a National Science Foundation REU). AP acknowledges funding and support for this project provided by Carnegie Science and a private foundation.
