@@ -5,7 +5,7 @@
 
 **Crystract in Action** is the companion repository for the manuscript: *"CRYSTRACT IN ACTION: ADVANCED CIF BATCH PROCESSING FOR STRUCTURAL ANALYSIS IN MATERIALS SCIENCE AND MINERALOGY"* by Anirudh Prabhu, Don Ngo, Shaunna Morrison, and Julia-Maria Hübner.
 
-This repository demonstrates the real-world application of the open-source [`crystract`](https://github.com/PrabhuLab/ml-crystals/tree/main/packages/crystract) R package. `crystract` is designed for the automated calculation and statistical treatment of interatomic distances and bond angles—processing anything from a single CIF file to thousands of crystal structures in parallel. 
+This repository demonstrates the real-world application of the open-source [`crystract`](https://github.com/PrabhuLab/ml-crystals/tree/main/packages/crystract) R package. `crystract` is designed for the automated calculation and statistical treatment of interatomic distances and bond angles—processing anything from a single CIF file to thousands of crystal structures in parallel.
 
 ## 📖 About the Package & Methodology
 
@@ -40,7 +40,7 @@ A large-scale structural analysis of naturally occurring Sulfides, Selenides, an
 
 Explore the standalone interactive Plotly visualizations exported directly from our automated workflows. **Click any link below to open the interactive chart:**
 
-### 🧱 Materials Science: Clathrates
+### 🧪 Materials Science: Clathrates
 * [Clathrate I Type: Lattice Parameter vs. Average Network Bond Length (Manuscript Figure 2))](materials/interactive_report_files/interactive_clathrate_plot.html)
 
 ### 🪨 Mineralogy: Chalcogen Ores
@@ -86,7 +86,7 @@ distances <- analysis_results$distances[[1]]
 filtered_result <- filter_ghost_distances(
   distances = distances,
   atomic_coordinates = analysis_results$atomic_coordinates[[1]],
-  tolerance = 0.4 
+  tolerance = 0.4
 )
 clean_distances <- filtered_result$kept
 
