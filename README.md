@@ -106,9 +106,11 @@ If you use `crystract` or the workflows provided in this repository, please cite
 
 > Prabhu, A., Ngo, D., Morrison, S. M., Hübner, J.-M. (2026). *CRYSTRACT IN ACTION: ADVANCED CIF BATCH PROCESSING FOR STRUCTURAL ANALYSIS IN MATERIALS SCIENCE AND MINERALOGY*. [Journal/DOI pending].
 
-**Data & Code:**
+**Data & Code Availability:**
 * The core `crystract` R package source code is hosted at [PrabhuLab/ml-crystals](https://github.com/PrabhuLab/ml-crystals/tree/main/packages/crystract) and can be installed via CRAN (`install.packages("crystract")`).
-* The CIF files used for these case studies are derived from the Inorganic Crystal Structure Database (ICSD) and the American Mineralogist Crystal Structure Database (AMCSD). Comma-separated lists containing the specific database codes used can be found here: [Minerals Study](minerals_database_codes.csv) & [Materials Study](materials_database_codes.csv).
+* The CIF files used for these case studies are derived from the Inorganic Crystal Structure Database (ICSD) and the American Mineralogist Crystal Structure Database (AMCSD).
+* Comma-separated lists containing the specific database codes used can be found here: [Minerals Study](minerals_database_codes.csv) & [Materials Study](materials_database_codes.csv).
+* 📖 **For step-by-step instructions and R scripts on how to use these CSV files to bulk download and format the datasets for the pipeline, please read the [Database Access and Data Preparation Guide](HowToUseDatabaseCodes.md).**
 
 ## 🤝 Acknowledgements
 JMH gratefully acknowledges discussions with Michael Baitinger, as well as funding by the Joachim Herz Foundation. DN has been supported by the Earth and Planetary Science Interdisciplinary Internship at Carnegie Science (a National Science Foundation REU). AP acknowledges funding and support for this project provided by Carnegie Science and a private foundation.
