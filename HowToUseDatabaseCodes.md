@@ -80,41 +80,21 @@ unzip(zipfile = zip_path, exdir = bulk_extract_dir)
 # 3. Load the mapping CSV
 df <- read.csv("minerals_database_codes.csv", stringsAsFactors = FALSE)
 
-# 4. Route the required CIFs to the pipeline directory
-cat("Filtering required CIF files...\n")
-missing_files <- character(0)
+# 4. Match IDs across nested folders and descriptive filenames
+source("scripts/prepare_amcsd.R")
+preparation <- prepare_amcsd(
+  "minerals_database_codes.csv", bulk_extract_dir, pipeline_input_dir
+)
+print(table(preparation$Status))
+# Resolve every missing or ambiguous match before analysing the curated set.
+stopifnot(all(preparation$Status == "copied"))
 
-for (i in 1:nrow(df)) {
-  filename <- df$File[i]
-  db_code <- df$Database_Code[i]
-
-  # In the AMCSD zip, files are typically named exactly by their AMCSD ID
-  # (e.g., "0010584.cif"). We extract that ID from the CSV.
-  if (!is.na(db_code) && grepl("^amcsd ", db_code)) {
-    amcsd_id <- trimws(sub("^amcsd ", "", db_code))
-    expected_filename <- paste0(amcsd_id, ".cif")
-
-    src <- file.path(bulk_extract_dir, expected_filename)
-    dest <- file.path(pipeline_input_dir, filename) # Saving as the specific name used in the pipeline
-
-    if (file.exists(src)) {
-      file.copy(from = src, to = dest, overwrite = TRUE)
-    } else {
-      missing_files <- c(missing_files, filename)
-    }
-  } else {
-    # Catch non-standard codes or unindexed files
-    missing_files <- c(missing_files, filename)
-  }
-}
-
-cat(sprintf("Extraction complete. %d files require manual review.\n", length(missing_files)))
 ```
 
 ## 3. Pipeline Integration
 
 Once both datasets are downloaded and properly organized into their directory structures using the R scripts above, you are ready to run the main data pipelines:
 1. Open the primary R Markdown notebooks.
-2. For the **Clathrates** workflow, ensure the `cif_root_dir` variable is updated to point to your new `clathrates` directory.
+2. For the **Clathrates** workflow, pass `params = list(cif_root_dir = "path/to/categorized/Clathrate I")` when rendering `materials/workflow.Rmd`. The selected directory must contain the structural-category folders.
 3. For the **Minerals** workflow, ensure the `cif_directory` variable is updated to point to your new `chalcogens` directory.
 4. Execute the notebooks to reproduce the filtering logic, ghost removal, and geometric extractions.

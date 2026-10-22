@@ -11,7 +11,7 @@ This repository demonstrates the real-world application of the open-source [`cry
 
 While multiple tools support the structural analysis of individual CIF files, `crystract` enables **scriptable, high-throughput batch processing** directly into machine-learning workflows. It bridges the gap between large theoretical databases and experimental realizations.
 
-* **Automated Environment Generation:** Automatically extracts asymmetric units, applies symmetry operations, and constructs 3x3x3 supercells to compute all neighbor distances and angles with exact mathematical error propagation.
+* **Automated Environment Generation:** Automatically extracts asymmetric units, applies symmetry operations, and constructs 3x3x3 supercells to compute all neighbor distances and angles with first-order uncertainty propagation from the original inputs.
 * **Disorder Handling:** Real materials often feature positional or occupational disorder. `crystract`'s `filter_ghost_distances()` function identifies and removes non-physical "ghost" distances based on the sum of covalent radii and a defined tolerance margin.
 * **Advanced Bonding Algorithms:** Offers robust neighbor-identification algorithms, including Minimum Distance (MinimumDistanceNN), Brunner's Method (BrunnerNN), Hoppe's Effective Coordination Number (EConNN), Voronoi (VoronoiNN), and CrystalNN.
 * **Post-Processing Statistics:** Accurately calculates occupancy-corrected coordination numbers (Weighted CN) and Wyckoff site-scaled average network distances.
@@ -25,8 +25,8 @@ This repository contains the data, scripts, and results for two distinct case st
 ### 1. Materials Science: Clathrate I Type Compounds (`materials/`)
 In intermetallic clathrates, the covalent framework forms polyhedral cages that trap guest atoms. The distances within this lattice govern cage size and flexibility, directly influencing thermoelectric properties.
 * **Goal:** Confirm the linear scaling relationship between the lattice parameter and the average covalent network distance.
-* **Process:** Analyzed **703 CIF files** from the ICSD database. Because multiple crystallographic models represent the same clathrate topology (e.g., *6c-16i-24k* vs *24k-48l*), occupational and positional disorder is prevalent. We applied the `MinimumDistanceNN` algorithm and utilized the ghost filter to remove over 5.2 million non-physical artifacts.
-* **Result:** Processed all 703 files in ~155 seconds on a standard laptop. The analysis confirmed the linear structural trend and successfully identified the intrinsic network chemistry offset for "inverse" clathrates.
+* **Process:** Analyzed **703 curated CIF files**, with database identifiers listed in `materials_database_codes.csv`,. Because multiple crystallographic models represent the same clathrate topology (e.g., *6c-16i-24k* vs *24k-48l*), occupational and positional disorder is prevalent. We applied the `MinimumDistanceNN` algorithm and utilized the ghost filter to remove over 5.2 million non-physical artifacts.
+* **Result:** The categorized Clathrate I dataset contains 703 CIF records representing 446 parsed compositions (normalized elemental ratios rounded to six decimal places). The workflow exports the input manifest, processed values, and session information alongside the plot.
 
 ### 2. Mineralogy: Chalcogen Ores (`minerals/`)
 A large-scale structural analysis of naturally occurring Sulfides, Selenides, and Tellurides to investigate systematic variations in X–X bond distances as a function of cation size, coordination number, and chalcogen species.
@@ -76,17 +76,18 @@ The `crystract` package provides granular functions for every step of crystallog
 library(crystract)
 
 # 1. Run the core pipeline on a target CIF file
-cif_path <- system.file("extdata", "ICSD422.cif", package = "crystract")
-analysis_results <- analyze_cif_files(cif_path)
+cif_path <- system.file("extdata", "2405219.cif", package = "crystract")
+stopifnot(nzchar(cif_path), file.exists(cif_path))
+analysis_results <- analyze_cif_files(cif_path, bonding_algorithms = "minimum_distance")
 
-# 2. Extract distance metrics with rigorous error propagation
-distances <- analysis_results$distances[[1]]
+# 2. Extract the identified bonds and their propagated uncertainties
+distances <- analysis_results$bonds_minimum_distance[[1]]
 
 # 3. Clean non-physical distances caused by crystallographic disorder
 filtered_result <- filter_ghost_distances(
   distances = distances,
   atomic_coordinates = analysis_results$atomic_coordinates[[1]],
-  tolerance = 0.4
+  margin = 0.1
 )
 clean_distances <- filtered_result$kept
 
@@ -94,7 +95,7 @@ clean_distances <- filtered_result$kept
 weighted_avg_dist <- calculate_weighted_average_network_distance(
   distances = clean_distances,
   atomic_coordinates = analysis_results$atomic_coordinates[[1]],
-  wyckoff_symbols = "4c"
+  wyckoff_symbols = "4d"
 )
 ```
 
@@ -114,3 +115,23 @@ If you use `crystract` or the workflows provided in this repository, please cite
 
 ## 🤝 Acknowledgements
 JMH gratefully acknowledges discussions with Michael Baitinger, as well as funding by the Joachim Herz Foundation. DN has been supported by the Earth and Planetary Science Interdisciplinary Internship at Carnegie Science (a National Science Foundation REU). AP acknowledges funding and support for this project provided by Carnegie Science and a private foundation.
+
+
+## Reproducing the revised workflows
+
+Install the package from the local source used for the analysis, then render the notebooks with explicit input and output folders. The package version remains 1.0.2; record the source commit and any local changes along with `sessionInfo()`.
+
+```R
+rmarkdown::render("materials/workflow.Rmd", params = list(
+  cif_root_dir = "/path/to/clathrates/Clathrate I/Verified ",
+  export_dir = "/path/to/results/materials"
+))
+rmarkdown::render("minerals/natural.Rmd", output_format = "html_document", params = list(
+  cif_directory = "/path/to/chalcogens",
+  validated_mapping = "/path/to/crystract-in-action/minerals_database_codes.csv",
+  output_dir = "/path/to/results/minerals",
+  unique_compositions = TRUE
+))
+```
+
+`validated_mapping` reuses the recorded mineral selection; it does not refresh IMA validation. Omit it only when refreshing that selection with a privately configured `MINDAT_API_TOKEN`. The reduced mineral analysis excludes publication titles containing `pressure` or `temperature`, retains the newest publication for each parsed composition, and breaks year ties by filename. Missing years sort last. Unparsed formulas remain separate, and distinct polymorphs are not distinguished by the composition key. Set `unique_compositions = FALSE` and use a separate output folder to reproduce the full selected dataset. Inspect the per-file status and unprocessed-file exports; do not interpret absent bond results as successful analyses.

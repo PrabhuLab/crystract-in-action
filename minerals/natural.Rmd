@@ -13,6 +13,13 @@ output:
   pdf_document:
     toc: true
 subtitle: ECon NN Diagnosis & Weighted CN Analysis
+params:
+  cif_directory: "chalcogens"
+  validated_mapping: null
+  output_dir: "revision_results"
+  workers: 2
+  unique_compositions: true
+  run_algorithm_comparison: false
 ---
 
 ```{r setup, include=FALSE}
@@ -68,7 +75,8 @@ log_time <- function(step_name, start_time) {
 global_start <- Sys.time()
 
 # --- Setup Plotly Export Directory ---
-export_dir_plotly <- "plotly_exports"
+dir.create(params$output_dir, recursive = TRUE, showWarnings = FALSE)
+export_dir_plotly <- file.path(params$output_dir, "plotly_exports")
 if (!dir.exists(export_dir_plotly)) {
   dir.create(export_dir_plotly, recursive = TRUE)
 }
@@ -118,7 +126,7 @@ To analyze Chalcogenides only, our filtering logic is: **(Contains S OR Se OR Te
 
 ```{r filter-by-chemistry}
 # --- Configuration ---
-cif_directory <- "/Users/donngo/Documents/cif"
+cif_directory <- params$cif_directory
 
 step_start <- Sys.time()
 
@@ -198,7 +206,7 @@ check_chemistry <- function(file_path) {
 }
 
 # --- 3. Run Filter (Parallelized) ---
-plan(multisession, workers = 5)
+plan(multisession, workers = params$workers)
 filter_results <- rbindlist(future_lapply(all_cif_files, check_chemistry, future.seed = TRUE))
 plan(sequential)
 
@@ -245,6 +253,12 @@ Furthermore, because real CIFs report *empirical* analytical formulas (which inc
 **Note:** You must have a registered API token from Mindat.org to establish the connection.
 
 ```{r filter-ima}
+if (!is.null(params$validated_mapping)) {
+  saved_selection <- fread(params$validated_mapping)
+  target_files <- filter_results[Keep == TRUE & File %in% saved_selection$File, Path]
+  ima_results <- data.table(Path = target_files, Mineral = NA_character_, Formula = NA_character_,
+                            Keep_IMA = TRUE, Reason = "Previously curated selection; IMA validation not refreshed")
+} else {
 # Load required libraries
 library(OpenMindat)
 library(httr)
@@ -256,7 +270,8 @@ library(data.table)
 # Replace "YOUR_API_TOKEN" with your actual token string.
 # -------------------------------------------------------------------
 # API_TOKEN <- "YOUR_API_TOKEN"
-API_TOKEN <- "048be448cf75cc60cfef50b0f1fb4068"
+API_TOKEN <- Sys.getenv("MINDAT_API_TOKEN")
+if (!nzchar(API_TOKEN)) stop("Set MINDAT_API_TOKEN to refresh the IMA selection")
 mindat_connection(API_TOKEN)
 
 step_start <- Sys.time()
@@ -401,7 +416,7 @@ cat(sprintf(
   length(target_files)
 ))
 
-plan(multisession, workers = 5)
+plan(multisession, workers = params$workers)
 ima_results <- rbindlist(future_lapply(target_files, check_ima, future.seed = TRUE))
 plan(sequential)
 
@@ -415,6 +430,48 @@ cat(
     length(target_files)
   )
 )
+}
+
+```
+
+### 3.3 Repeated compositions and measurement studies
+
+For the reduced analysis, publication titles containing `pressure` or `temperature` are excluded before retaining the most recent publication per composition. Composition keys are built from normalized elemental ratios in sum formulas (including grouped occupancies), rounded to six decimal places. Formulas that cannot be parsed are retained separately. This screening does not establish ambient measurement conditions and does not distinguish polymorphs of the same composition. The full selected dataset can be reproduced with `unique_compositions = FALSE`.
+
+```{r reduce-compositions}
+source("../scripts/composition_key.R")
+selection <- rbindlist(lapply(target_files, function(path) {
+  lines <- readLines(path, warn = FALSE)
+  cif <- read_cif_files(path)[[1]]
+  formula <- extract_chemical_formula(cif)
+  key <- composition_key(formula)
+  if (is.na(key)) key <- paste0("unparsed:", basename(path))
+  year_line <- grep("^_journal_year", lines, value = TRUE)
+  year <- if (length(year_line)) as.integer(gsub("[^0-9]", "", year_line[1])) else NA_integer_
+  title_start <- grep("^_publ_section_title", lines)
+  title <- ""
+  if (length(title_start)) {
+    rest <- lines[seq.int(title_start[1], length(lines))]
+    next_tag <- which(grepl("^_", rest[-1]))
+    last <- if (length(next_tag)) next_tag[1] else length(rest)
+    title <- paste(rest[seq_len(last)], collapse = " ")
+  }
+  data.table(Path = path, File = basename(path), Formula = formula, CompositionKey = key,
+             Year = year, Title = title,
+             MeasurementStudy = grepl("pressure|temperature", title, ignore.case = TRUE))
+}))
+selection[, Retained := TRUE]
+if (isTRUE(params$unique_compositions)) {
+  selection[MeasurementStudy == TRUE, Retained := FALSE]
+  eligible <- selection[Retained == TRUE][order(is.na(Year), -Year, File)]
+  keep <- eligible[!duplicated(CompositionKey), Path]
+  selection[, Retained := Path %in% keep]
+  stopifnot(!anyDuplicated(selection[Retained == TRUE, CompositionKey]),
+            !any(selection[Retained == TRUE, MeasurementStudy]))
+}
+fwrite(selection, file.path(params$output_dir, "composition_selection.csv"))
+target_files <- selection[Retained == TRUE, Path]
+cat(sprintf("Composition screening retained %d of %d selected CIF records.\n", length(target_files), nrow(selection)))
 ```
 
 ### 3.3 IMA Validation Summary
@@ -448,18 +505,20 @@ We run the `crystract` feature extraction using the `econ` bonding algorithm. Th
 set_radii_data(custom_radii_values)
 cat("Custom radii table successfully loaded for filtering.\n")
 
-analysis_output_dir <- "~/repos/ml-crystals/notebook/natural/crystract_econ_results"
-num_workers <- parallel::detectCores() - 1
+analysis_output_dir <- file.path(params$output_dir, "econ_batches")
+num_workers <- params$workers
 
 # --- Robust Worker Function ---
 process_structure_robust <- function(file_path) {
+  suppressMessages(set_radii_data(custom_radii_values))
   fname <- basename(file_path)
+  unavailable <- function(reason) data.table(file_name = fname, filter_status = reason)
   
   tryCatch({
     # 1. Read and Extract
     cif_list <- read_cif_files(file_path)
     if (length(cif_list) == 0)
-      return(NULL)
+      return(unavailable("unreadable_cif"))
     cif_data <- cif_list[[1]]
     
     formula <- extract_chemical_formula(cif_data)
@@ -469,7 +528,7 @@ process_structure_robust <- function(file_path) {
     
     if (is.null(atoms) ||
         is.null(metrics) || is.null(sym_ops))
-      return(NULL)
+      return(unavailable("missing_geometry"))
     
     # 2. Transform and Expand (3x3x3 Supercell)
     full_cell <- apply_symmetry_operations(atoms, sym_ops, metrics, tolerance = 1e-4)
@@ -478,23 +537,25 @@ process_structure_robust <- function(file_path) {
     # 3. Calculate Raw Distances
     dists <- calculate_distances(atoms, expanded, metrics, tolerance = 1e-4)
     if (nrow(dists) == 0)
-      return(NULL)
+      return(unavailable("no_distances"))
     
     # --- 4. Attempt Ghost Filtering ---
     filter_status <- "applied"
     
     ghost_res <- tryCatch({
       filter_ghost_distances(dists, atoms, margin = 0.15, radii_type = "covalent")
-    }, error = function(e)
-      list(kept = data.table()))
+    }, error = function(e) stop("Ghost filtering failed: ", conditionMessage(e)))
     
     clean_dists <- ghost_res$kept
     
     # 5. Determine Bonds using ECon
-    bonds <- econ(clean_dists)
+    bonds <- econ_nn(clean_dists, atoms)
     if (nrow(bonds) == 0)
-      return(NULL)
+      return(unavailable("no_bonds_after_filtering"))
     
+    if (is.null(calculate_weighted_neighbor_counts(bonds, atoms)))
+      return(unavailable("invalid_site_occupancy"))
+
     # 6. Calculate Properties
     cn_table <- calculate_neighbor_counts(bonds)
     angles   <- calculate_angles(bonds, atoms, expanded, metrics)
@@ -513,7 +574,8 @@ process_structure_robust <- function(file_path) {
     )
     
   }, error = function(e) {
-    return(NULL)
+    warning(fname, ": ", conditionMessage(e))
+    return(data.table(file_name = fname, filter_status = "error", error_message = conditionMessage(e)))
   })
 }
 
@@ -545,6 +607,8 @@ if (length(target_files) > 0) {
     if (nrow(batch_dt) > 0) {
       save_path <- file.path(analysis_output_dir, paste0("batch_", b, ".rds"))
       saveRDS(batch_dt, save_path)
+      fwrite(batch_dt[, intersect(c("file_name", "filter_status", "error_message"), names(batch_dt)), with = FALSE],
+             file.path(params$output_dir, paste0("batch_", b, "_status.csv")))
       
       # Print filter stats for this batch
       stats <- table(batch_dt$filter_status)
@@ -577,6 +641,7 @@ step_start <- Sys.time()
 final_bonds_list <- list()
 final_angles_list <- list()
 high_cn_debug_log <- list()
+invalid_occupancy_files <- character()
 
 if (dir.exists(analysis_output_dir)) {
   cat("Reading batch files and aggregating results...\n")
@@ -586,8 +651,10 @@ if (dir.exists(analysis_output_dir)) {
   
   for (bf in batch_files) {
     batch_dt <- readRDS(bf)
+    if ("filter_status" %in% names(batch_dt)) batch_dt <- batch_dt[filter_status == "applied"]
+    if (!nrow(batch_dt)) next
     
-    for (i in 1:nrow(batch_dt)) {
+    for (i in seq_len(nrow(batch_dt))) {
       current_file <- batch_dt$file_name[i]
       if (is.null(batch_dt$bonds_econ) ||
           length(batch_dt$bonds_econ) < i)
@@ -635,18 +702,16 @@ if (dir.exists(analysis_output_dir)) {
       }
       
       # --- CALCULATE WEIGHTED CN ---
+      weighted_counts <- calculate_weighted_neighbor_counts(bonded_pairs, coords)
+      if (is.null(weighted_counts)) {
+        invalid_occupancy_files <- c(invalid_occupancy_files, current_file)
+        # Remove this record's angles as well as its bonds.
+        final_angles_list <- Filter(function(x) !identical(x$file_name[1], current_file), final_angles_list)
+        next
+      }
       bonded_pairs[, NeighborSite := sub("_.*", "", Atom2)]
-      site_counts <- bonded_pairs[, .(m_i = .N), by = .(Atom1, NeighborSite)]
-      site_counts <- merge(
-        site_counts,
-        coords[, .(Label, Occupancy)],
-        by.x = "NeighborSite",
-        by.y = "Label",
-        all.x = TRUE
-      )
-      site_counts[is.na(Occupancy), Occupancy := 1.0]
-      w_cn <- site_counts[, .(CN_Weighted = sum(m_i * Occupancy)), by = .(Atom1)]
-      
+      w_cn <- weighted_counts[, .(Atom1 = Atom, CN_Weighted = WeightedCoordinationNumber)]
+
       # --- ASSEMBLE DATA ---
       # Merge Exact Neighbor Occupancies into final dataset for Specific WCN plots
       bonded_pairs <- merge(
@@ -674,6 +739,8 @@ if (dir.exists(analysis_output_dir)) {
   all_angles_data <- rbindlist(final_angles_list, fill = TRUE)
   high_cn_diagnosis <- rbindlist(high_cn_debug_log, fill = TRUE)
   
+  if (!nrow(final_bonds_data)) stop("No bonds were produced; inspect the per-file error report")
+
   # Merge Atomic Numbers
   final_bonds_data <- merge(
     final_bonds_data,
@@ -843,7 +910,8 @@ p71 <- ggplot(pair_len_agg, aes(
     name = "# Observations"
   ) +
   labs(title = "Pairwise Bond Lengths (All Elements)", x = "Neighbor Element", y = "Central Element") +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   theme(axis.text.x = element_text(
     angle = 90,
     vjust = 0.5,
@@ -894,7 +962,8 @@ if (exists("all_angles_data") &&
       name = "# Observations"
     ) +
     labs(title = "Pairwise Bond Angles", x = "Neighbor Element", y = "Central Element") +
-    theme_minimal(base_size=15) +
+    theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
     theme(axis.text.x = element_text(
       angle = 90,
       vjust = 0.5,
@@ -949,7 +1018,8 @@ p81 <- ggplot(reg_cn_agg, aes(
     name = "# Observations"
   ) +
   labs(title = "Bond Length vs ECon CN", x = "ECon CN (Rounded for Grouping)", y = "Central Element") +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # 1. Static
@@ -995,7 +1065,8 @@ p82 <- ggplot(wcn_agg, aes(
     name = "# Observations"
   ) +
   labs(title = "Bond Length vs Weighted CN", x = "Weighted CN", y = "Central Element") +
-  theme_minimal(base_size=15)
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14))
 
 # 1. Static
 print(p82)
@@ -1038,8 +1109,9 @@ p83 <- ggplot(wcn_agg_len, aes(
     breaks = scales::breaks_pretty(n = 5),
     name = "# Observations"
   ) +
-  labs(title = "Average Bond Lengths vs. Coordination Environments around Central Atoms", x = "Occ.-Weighted Effective Coordination Number", y = "Central Element") +
-  theme_minimal(base_size=15)
+  labs(title = "Average Bond Lengths vs. Coordination Environments around Central Atoms", x = "Occupancy-weighted coordination number", y = "Central Element") +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14))
 
 # 1. Static
 print(p83)
@@ -1093,7 +1165,8 @@ p91 <- ggplot(agg_center, aes(
     name = "# Observations"
   ) +
   labs(title = "Average Bond Lengths around S, Se, or Te Central Atoms", x = "Neighbor Element", y = "Central Chalcogen") +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   theme(axis.text.x = element_text(
     angle = 90,
     vjust = 0.5,
@@ -1120,7 +1193,8 @@ ggplot(agg_center, aes(x = Element2, y = Element1, fill = MeanDist)) +
     x = "Neighbor Element",
     y = "Central Chalcogen"
   ) +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   coord_fixed()
 ```
 
@@ -1157,7 +1231,8 @@ p92 <- ggplot(agg_center_norm, aes(
     name = "# Observations"
   ) +
   labs(title = "Normalized Bond Lengths around S, Se, or Te Central Atoms", x = "Neighbor Element", y = "Central Chalcogen") +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   theme(axis.text.x = element_text(
     angle = 90,
     vjust = 0.5,
@@ -1185,7 +1260,8 @@ ggplot(agg_center_norm,
     x = "Neighbor Element",
     y = "Central Chalcogen"
   ) +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   coord_fixed()
 ```
 
@@ -1222,7 +1298,8 @@ p93 <- ggplot(agg_center_cn, aes(
     name = "# Observations"
   ) +
   labs(title = "ECon CN: S, Se, Te Centers", x = "Neighbor Element", y = "Central Chalcogen") +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   theme(axis.text.x = element_text(
     angle = 90,
     vjust = 0.5,
@@ -1249,7 +1326,8 @@ ggplot(agg_center_cn, aes(x = Element2, y = Element1, fill = MeanCN)) +
     x = "Neighbor Element",
     y = "Central Chalcogen"
   ) +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   coord_fixed()
 ```
 
@@ -1274,6 +1352,10 @@ df_plot_wcn <- merge(atom_specifics,
 # 4. Filter down to only Chalcogen centers
 targets <- c("S", "Se", "Te")
 df_plot_chalc <- df_plot_wcn[Element1 %in% targets]
+
+subset_counts <- df_plot_chalc[, .(N = uniqueN(file_name)), by = Element1]
+fwrite(subset_counts, file.path(params$output_dir, "figure5_subset_counts.csv"))
+count_labels <- setNames(paste0(subset_counts$Element1, " (n = ", subset_counts$N, ")"), subset_counts$Element1)
 
 # Reorder factors by Atomic Number for the plot axes
 df_plot_chalc[, Element1 := fct_reorder(Element1, Z1)]
@@ -1306,12 +1388,11 @@ p94 <- ggplot(df_plot_chalc, aes(
     round(Total_WCN, 2)
   )
 )) +
+  scale_y_discrete(labels = count_labels) +
   # Apply vertical jitter (offset)
   geom_jitter(
     aes(size = Total_WCN, color = Specific_WCN),
-    width = 0.15,
-    height = 0.25,
-    alpha = 0.7
+    alpha = 0.7, position = position_jitter(width = 0.15, height = 0.25, seed = 123)
   ) +
   scale_color_viridis_c(
     option = "magma",
@@ -1327,11 +1408,12 @@ p94 <- ggplot(df_plot_chalc, aes(
   ) +
   labs(
     title = "Coordination Environments around S, Se, or Te",
-    subtitle = "Individual Coordination Environments (Largest Values Plotted in Background)",
+    subtitle = "n = distinct CIF records in each central-element subset",
     x = "Neighbor Element",
     y = "Central Chalcogen"
   ) +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   theme(axis.text.x = element_text(
     angle = 90,
     vjust = 0.5,
@@ -1363,7 +1445,8 @@ ggplot(agg_center_wcn,
     x = "Neighbor Element",
     y = "Central Chalcogen"
   ) +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   coord_fixed()
 ```
 
@@ -1407,7 +1490,8 @@ p_s <- ggplot(df_s, aes(
                         name = "Total WCN",
                         limits = c(1, max_tot)) +
   labs(title = "Sulfur Coordination Environments", x = "Neighbor Element", y = "Central S") +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   theme(axis.text.x = element_text(
     angle = 90,
     vjust = 0.5,
@@ -1458,7 +1542,8 @@ p_se <- ggplot(df_se, aes(
                         name = "Total WCN",
                         limits = c(1, max_tot)) +
   labs(title = "Selenium Coordination Environments", x = "Neighbor Element", y = "Central Se") +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   theme(axis.text.x = element_text(
     angle = 90,
     vjust = 0.5,
@@ -1509,7 +1594,8 @@ p_te <- ggplot(df_te, aes(
                         name = "Total WCN",
                         limits = c(1, max_tot)) +
   labs(title = "Tellurium Coordination Environments", x = "Neighbor Element", y = "Central Te") +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   theme(axis.text.x = element_text(
     angle = 90,
     vjust = 0.5,
@@ -1558,7 +1644,8 @@ if (exists("all_angles_data") &&
       name = "# Observations"
     ) +
     labs(title = "Bond Angles: S, Se, Te Centers", x = "Neighbor Element", y = "Central Chalcogen") +
-    theme_minimal(base_size=15) +
+    theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
     theme(axis.text.x = element_text(
       angle = 90,
       vjust = 0.5,
@@ -1579,7 +1666,8 @@ if (exists("all_angles_data") &&
     geom_tile(color = "white") +
     scale_fill_viridis_c(option = "magma", name = "Avg Angle (°)") +
     labs(title = "Bond Angles: S, Se, Te Centers (Heatmap)", x = "Neighbor Element", y = "Central Chalcogen") +
-    theme_minimal(base_size=15) +
+    theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
     coord_fixed()
 } else {
   cat("No angle data available.\n")
@@ -1625,7 +1713,8 @@ ggplot(violin_data, aes(x = reorder(Element1, Distance), y = Distance)) +
     x = "Element (Sorted by Median Distance)",
     y = "Bond Distance (Å)"
   ) +
-  theme_minimal(base_size=15) +
+  theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
@@ -1808,7 +1897,8 @@ if (exists("all_angles_data") && nrow(all_angles_data) > 0) {
       x = "Bond Length (Å)",
       y = "Bond Angle (°)"
     ) +
-    theme_minimal(base_size=15) +
+    theme_minimal(base_size=18) +
+  theme(axis.text = element_text(size = 14)) +
     theme(legend.position = "bottom") +
     guides(color = guide_legend(override.aes = list(alpha = 1, size = 3)))
   
@@ -1834,7 +1924,7 @@ if (exists("all_angles_data") && nrow(all_angles_data) > 0) {
 
 This section samples ~50 chalcogenide CIF files from our previously filtered list and runs them through a multi-algorithm coordination analysis. While the entire notebook was rebuilt around **ECon**, here we benchmark it directly alongside the other main bonding algorithms provided by `crystract`. We extract both geometric/standard CNs and Weighted CNs.
 
-```{r multi-algo-test, message=FALSE, warning=FALSE}
+```{r multi-algo-test, message=FALSE, warning=FALSE, eval=params$run_algorithm_comparison}
 # --- 1. Load required libraries ---
 library(crystract)
 library(data.table)
@@ -1846,12 +1936,9 @@ set_radii_data(custom_radii_values)
 set.seed(123)
 
 # Destination for the test files
-dest_dir <- "/Users/donngo/Documents/test"
+dest_dir <- tempfile("algorithm-comparison-", tmpdir = params$output_dir)
 if (!dir.exists(dest_dir)) {
   dir.create(dest_dir, recursive = TRUE)
-} else {
-  # Clean directory to avoid mixing old test runs
-  invisible(file.remove(list.files(dest_dir, full.names = TRUE)))
 }
 
 # Use `target_files` (generated in Section 3) to guarantee chemistry logic
@@ -1872,11 +1959,15 @@ results <- analyze_cif_files(
   bonding_algorithms = c("minimum_distance", "brunner", "econ", "voronoi", "crystal_nn"),
   calculate_bond_angles = FALSE,
   perform_error_propagation = FALSE,
-  workers = 9
+  workers = params$workers
 )
 
+comparison_status <- data.table(File = basename(selected_files))
+comparison_status[, Processed := File %in% results$file_name]
+fwrite(comparison_status, file.path(params$output_dir, "algorithm_comparison_status.csv"))
+
 # --- 4. Extract and Combine Geometric Coordination Numbers ---
-output_dir <- "/Users/donngo/Documents/cif_results"
+output_dir <- file.path(params$output_dir, "algorithm_comparison")
 if (!dir.exists(output_dir))
   dir.create(output_dir, recursive = TRUE)
 
@@ -1999,7 +2090,7 @@ if (exists("final_bonds_data") &&
     
     # 2. Export the physical CIF files for review
     # The baseline cif_directory is set in Section 3
-    export_dir <- "/Users/donngo/Documents/high_wcn_cifs"
+    export_dir <- file.path(params$output_dir, "high_wcn_cifs")
     if (!dir.exists(export_dir))
       dir.create(export_dir, recursive = TRUE)
     
@@ -2033,7 +2124,7 @@ if (exists("final_bonds_data") &&
 final_db_codes <- filter_results[Path %in% target_files, .(File, Database_Code)]
 
 # Save the list to a CSV file in the output directory
-output_csv_path <- "~/Documents/cif_results/cif_database_codes.csv"
+output_csv_path <- file.path(params$output_dir, "cif_database_codes.csv")
 if (!dir.exists(dirname(output_csv_path))) {
   dir.create(dirname(output_csv_path), recursive = TRUE)
 }
@@ -2059,4 +2150,47 @@ datatable(
   ),
   caption = "Final Database Codes of Validated Chalcogenide CIFs"
 )
+```
+
+
+## 15. Export Figure Data and Validation Records
+
+```{r export-revision-results}
+fwrite(data.table(File = invalid_occupancy_files), file.path(params$output_dir, "invalid_occupancy_files.csv"))
+fwrite(agg_center_norm, file.path(params$output_dir, "normalized_distances_by_chalcogen.csv"))
+processed <- final_bonds_data[, .(Bonds = .N), by = file_name]
+fwrite(processed, file.path(params$output_dir, "processed_files.csv"))
+fwrite(selection[Retained == TRUE & !File %in% processed$file_name], file.path(params$output_dir, "unprocessed_files.csv"))
+fwrite(timing_log, file.path(params$output_dir, "timings.csv"))
+writeLines(capture.output(sessionInfo()), file.path(params$output_dir, "sessionInfo.txt"))
+for (name in c("p83", "p91", "p92", "p94")) {
+  ggsave(file.path(params$output_dir, paste0(name, ".png")), get(name), width = 15, height = if (name == "p83") 12 else 6, dpi = 300)
+}
+```
+
+
+## Monte Carlo Validation of Uncertainty Propagation
+
+This reproducible synthetic test checks the analytic distance and angle uncertainties independently of the derivative formulas. It samples 12 original inputs from normal distributions: six triclinic cell parameters and the fractional coordinates of two asymmetric sites. Each original coordinate is sampled once; the identity and inversion-related images are regenerated from that shared sample. The test uses 4,000 realizations with seed 10 and a diagonal input covariance. It is a validation example rather than a simulation of the entire case-study dataset. The sampling approach is described in JCGM 101:2008 (doi:10.59161/JCGM101-2008).
+
+```{r monte-carlo-validation, fig.width=11, fig.height=4.5}
+source("../scripts/validate_uncertainty_monte_carlo.R")
+mc_validation <- run_monte_carlo_validation(samples = 4000L, seed = 10L)
+stopifnot(all(mc_validation$summary$RelativeDifferencePercent < 6))
+validation_dir <- file.path(params$output_dir, "uncertainty_validation")
+export_monte_carlo_validation(mc_validation, validation_dir)
+knitr::kable(mc_validation$inputs, caption = "Specified means and standard uncertainties of the original inputs")
+knitr::kable(mc_validation$summary, digits = 8, caption = "Analytic and Monte Carlo standard uncertainties")
+knitr::include_graphics(file.path(validation_dir, "monte_carlo_validation.png"))
+```
+
+The observed relative differences are approximately 0.30% for distance and 0.40% for angle. These results support the first-order calculation for this non-collinear triclinic example and the stated input distributions. They do not recover unavailable refinement covariance or establish accuracy for every CIF, near-singular angle, or uncertainty magnitude.
+
+
+## Publication Figures
+
+```{r publication-figures}
+source("../scripts/export_publication_figures.R")
+export_mineral_publication_figures(list(p83=p83, p91=p91, p92=p92, p94=p94, p11=p11),
+                                   file.path(params$output_dir, "publication"))
 ```

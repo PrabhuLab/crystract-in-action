@@ -1,5 +1,5 @@
 ---
-title: "Final Optimized Interactive Analysis of 704 Clathrate Crystal Structures"
+title: "Clathrate Framework Bond Length Analysis"
 author: "Don Ngo, Julia Maria Hubner, Anirudh Prabhu"
 date: "`r Sys.Date()`"
 output:
@@ -8,6 +8,9 @@ output:
     toc_float: true
     theme: journal
     df_print: paged
+params:
+  cif_root_dir: "clathrates"
+  export_dir: "interactive_report_files"
 ---
 
 ```{r setup, include=FALSE}
@@ -26,18 +29,19 @@ library(DT)
 library(htmlwidgets)
 library(knitr)
 data(covalent_radii, package = "crystract")
+source("../scripts/composition_key.R")
 ```
 
 ## 1. Objective and Methodology
 
-This report documents the final, robust workflow for analyzing a curated dataset of 704 clathrate CIF files. The goal is to calculate the weighted average network bond distance for each structure and explore its relationship with the lattice parameter 'a'. The methodology incorporates a multi-step filtering pipeline to handle the complexities of real-world crystallographic data, such as site-occupancy disorder and non-physical "ghost" distances.
+This report documents the final, robust workflow for analyzing a curated dataset of categorized Clathrate I CIF files. The goal is to calculate the weighted average network bond distance for each structure and explore its relationship with the lattice parameter 'a'. The methodology incorporates a multi-step filtering pipeline to handle the complexities of real-world crystallographic data, such as site-occupancy disorder and non-physical "ghost" distances.
 
 ### 1.1. Loading Categorized CIF Files
 
 The curated dataset is organized into subdirectories defining the specific filtering rules for the files within (e.g., `6c-16i-24k`). The script recursively finds all CIF files and maps each one to its structural category.
 
 ```{r load-files, echo=TRUE}
-cif_root_dir <- "/Users/donngo/Documents/ml-crystals/notebook/workflow/Verified"
+cif_root_dir <- normalizePath(params$cif_root_dir, mustWork = TRUE)
 
 if (!dir.exists(cif_root_dir)) stop(paste("CRITICAL ERROR: Root directory not found:", cif_root_dir))
 
@@ -85,6 +89,7 @@ timing_processing <- system.time({
   process_file_results <- function(i) {
     current_filename <- analysis_results$file_name[i]
     category_info <- file_map[file_name == current_filename]
+    if (nrow(category_info) > 1L) stop("Duplicate CIF basenames in the input categories")
     if (is.null(current_filename) ||
         nrow(category_info) == 0)
       return(NULL)
@@ -97,7 +102,7 @@ timing_processing <- system.time({
     
     # --- Step 1: Parse Category Rules and Filter Guests ---
     category <- category_info$category
-    target_wyckoff_symbols <- strsplit(gsub("\\+M_on_.*", "", category), "-")[[1]]
+    target_wyckoff_symbols <- strsplit(sub("[+-]M_on_.*", "", category), "-")[[1]]
     
     # Unconditionally filter out guest atoms to analyze the host framework
     distances <- filter_by_elements(distances, coords, guest_atoms)
@@ -132,6 +137,7 @@ timing_processing <- system.time({
       data.table(
         file = current_filename,
         category = category,
+        chemical_formula = analysis_results$chemical_formula[i],
         lattice_parameter_a = analysis_results$unit_cell_metrics[[i]]$`_cell_length_a`,
         weighted_distance = weighted_avg
       )
@@ -142,6 +148,7 @@ timing_processing <- system.time({
   plot_data_list <- lapply(1:nrow(analysis_results), process_file_results)
   plot_data <- rbindlist(plot_data_list, use.names = TRUE, fill = TRUE)
   plot_data <- na.omit(plot_data)
+  plot_data[, composition_key := composition_key(chemical_formula)]
   removed_ghosts_summary <- rbindlist(all_removed_ghosts, fill = TRUE)
 }) # --- Timing End ---
 
@@ -163,8 +170,8 @@ if (exists("removed_ghosts_summary") &&
 This section summarizes the interatomic distances that were automatically filtered out as non-physical *before* bond identification. A sample of up to 1,000 such distances is shown below, and the complete list is saved to a separate CSV file for full analysis.
 
 ```{r show-removed-distances, echo=TRUE}
-export_dir <- "interactive_report_files"
-dir.create(export_dir, showWarnings = FALSE)
+export_dir <- params$export_dir
+dir.create(export_dir, recursive = TRUE, showWarnings = FALSE)
 
 if (exists("removed_ghosts_summary") && nrow(removed_ghosts_summary) > 0) {
   full_csv_path <- file.path(export_dir, "removed_ghosts_summary.csv")
@@ -179,7 +186,7 @@ if (exists("removed_ghosts_summary") && nrow(removed_ghosts_summary) > 0) {
     caption = paste("Sample of Removed Ghost Distances (", sample_size, " of ", nrow(removed_ghosts_summary), " total)"),
     rownames = FALSE, extensions = 'Buttons',
     options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('copy', 'csv')),
-    colnames = c("Atom 1", "Atom 2", "Removed Distance (Å)", "Expected (Å)", "Lower Bound (Å)", "Upper Bound (Å)", "Reason", "File")
+    colnames = names(removed_ghosts_summary)
   )
 } else {
   cat("No 'ghost' distances were detected during the analysis.")
@@ -193,10 +200,17 @@ The plot below visualizes the final, cleaned data, showing the relationship betw
 ```{r generate-plot, echo=TRUE}
 p <- ggplot(plot_data, aes(x = lattice_parameter_a, y = weighted_distance, color = category, shape = category, text = file)) +
   geom_point(alpha = 0.65, size = 2.5) +
+  scale_shape_manual(values = c(16, 17, 15, 3, 4, 8, 0, 1, 2, 5)) +
   geom_smooth(aes(group = 1), method = "lm", se = FALSE, color = "black", linetype = "dotted", fullrange = TRUE) +
+  annotate("segment", x=10.65, y=2.525, xend=12.16, yend=2.893,
+           linetype="dashed", linewidth=0.65, color="black") +
+  annotate("text", x=10.85, y=2.84, label="Inverse\nclathrates", size=3.3) +
+  annotate("segment", x=11.05, y=2.79, xend=11.34, yend=2.735,
+           arrow=grid::arrow(length=grid::unit(0.10,"inches")), linewidth=0.4) +
   labs(
     title = "Average Network Bond Length vs. Lattice Parameter 'a'",
-    subtitle = "Data points are colored and shaped by their structural category",
+    subtitle = sprintf("%d CIF records; %d distinct compositions",
+                       nrow(plot_data), uniqueN(plot_data$composition_key, na.rm = TRUE)),
     x = "Lattice Parameter a (Å)",
     y = "Weighted Average Network Bond Length (Å)",
     color = "Structural Category", shape = "Structural Category"
@@ -204,8 +218,17 @@ p <- ggplot(plot_data, aes(x = lattice_parameter_a, y = weighted_distance, color
   theme_bw(base_size = 14) +
   theme(legend.position = "bottom", legend.title = element_text(face = "bold"))
 
+stopifnot(!anyNA(ggplot_build(p)$data[[1]]$shape))
 interactive_plot <- ggplotly(p, tooltip = c("x", "y", "text", "color"))
 interactive_plot
+```
+
+The dotted line is the overall least-squares fit. The dashed line and inverse-clathrate annotation are an approximate digitization of the original figure's visual guide, not a regression on an independently classified subset. The original subset labels and line equation are unavailable; the guide alone does not establish a separate slope or chemical mechanism. Its endpoints are exported for reproducibility.
+
+```{r export-inverse-guide, echo=TRUE}
+fwrite(data.table(x=c(10.65,12.16), y=c(2.525,2.893),
+                 definition="Approximate visual-guide endpoints digitized from original figure; not a subset regression"),
+       file.path(export_dir,"inverse_clathrate_visual_guide.csv"))
 ```
 
 ### 5.1. Interactive Data Table
@@ -218,7 +241,7 @@ datatable(
   caption = "Final Processed Data for Clathrate Structures",
   rownames = FALSE, filter = 'top', extensions = 'Buttons',
   options = list(pageLength = 15, dom = 'Bfrtip', buttons = c('copy', 'csv', 'excel')),
-  colnames = c("File", "Category", "Lattice 'a' (Å)", "Weighted Dist (Å)")
+  colnames = c("File", "Category", "Reported formula", "Lattice 'a' (Å)", "Weighted Dist (Å)", "Composition key")
 )
 ```
 
@@ -239,7 +262,36 @@ plot_table_filename <- file.path(export_dir, "final_clathrate_data.html")
 saveWidget(final_data_table, file = plot_table_filename, selfcontained = TRUE)
 cat(paste0("Interactive plot data table saved to '", plot_table_filename, "'\n"))
 
-detailed_export_path <- file.path(export_dir, "detailed_analysis_csvs")
-export_analysis_to_csv(analysis_results = analysis_results, output_dir = detailed_export_path, overwrite = TRUE)
+fwrite(plot_data, file.path(export_dir, "clathrate_results.csv"))
+fwrite(file_map, file.path(export_dir, "input_manifest.csv"))
+writeLines(capture.output(sessionInfo()), file.path(export_dir, "sessionInfo.txt"))
+saveRDS(plot_data, file.path(export_dir, "clathrate_results.rds"))
+ggsave(file.path(export_dir, "clathrate_network_distance.png"), p, width = 11, height = 8, dpi = 300)
 cat("...Done. Check the '", export_dir, "' folder for all outputs.\n")
+```
+
+
+## Monte Carlo Validation of Uncertainty Propagation
+
+This reproducible synthetic test checks the analytic distance and angle uncertainties independently of the derivative formulas. It samples 12 original inputs from normal distributions: six triclinic cell parameters and the fractional coordinates of two asymmetric sites. Each original coordinate is sampled once; the identity and inversion-related images are regenerated from that shared sample. The test uses 4,000 realizations with seed 10 and a diagonal input covariance. It is a validation example rather than a simulation of the entire case-study dataset. The sampling approach is described in JCGM 101:2008 (doi:10.59161/JCGM101-2008).
+
+```{r monte-carlo-validation, fig.width=11, fig.height=4.5}
+source("../scripts/validate_uncertainty_monte_carlo.R")
+mc_validation <- run_monte_carlo_validation(samples = 4000L, seed = 10L)
+stopifnot(all(mc_validation$summary$RelativeDifferencePercent < 6))
+validation_dir <- file.path(params$export_dir, "uncertainty_validation")
+export_monte_carlo_validation(mc_validation, validation_dir)
+knitr::kable(mc_validation$inputs, caption = "Specified means and standard uncertainties of the original inputs")
+knitr::kable(mc_validation$summary, digits = 8, caption = "Analytic and Monte Carlo standard uncertainties")
+knitr::include_graphics(file.path(validation_dir, "monte_carlo_validation.png"))
+```
+
+The observed relative differences are approximately 0.30% for distance and 0.40% for angle. These results support the first-order calculation for this non-collinear triclinic example and the stated input distributions. They do not recover unavailable refinement covariance or establish accuracy for every CIF, near-singular angle, or uncertainty magnitude.
+
+
+## Publication Figure
+
+```{r publication-figure}
+source("../scripts/export_publication_figures.R")
+export_material_publication_figure(p, file.path(params$export_dir, "publication"))
 ```
