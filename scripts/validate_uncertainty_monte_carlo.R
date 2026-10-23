@@ -15,18 +15,18 @@ run_monte_carlo_validation <- function(samples = 4000L, seed = 10L) {
                 crystract::propagate_angle_error(angle, atoms, images, cell)$AngleError)
   mean_input <- c(7,8,9,c(79,83,74)*pi/180,.1,.05,.07,.2,.12,.3)
   sd_input <- c(rep(.002,3),rep(.01*pi/180,3),rep(.001,6))
-  evaluate <- function(p) {
+  evaluate <- function(p) { # p = (a,b,c,alpha,beta,gamma,A_x,A_y,A_z,B_x,B_y,B_z); angles in radians.
     ca <- cos(p[4]); cb <- cos(p[5]); cg <- cos(p[6]); sg <- sin(p[6])
     D <- 1-ca^2-cb^2-cg^2+2*ca*cb*cg
     M <- rbind(c(p[1],p[2]*cg,p[3]*cb), c(0,p[2]*sg,p[3]*(ca-cb*cg)/sg), c(0,0,p[3]*sqrt(D)/sg))
-    first <- as.numeric(M %*% (p[10:12]-p[7:9]))
-    second <- as.numeric(M %*% (1-p[10:12]-p[7:9]))
+    first <- as.numeric(M %*% (p[10:12]-p[7:9])) # u = M(B-A).
+    second <- as.numeric(M %*% (1-p[10:12]-p[7:9])) # v = M((1-B)-A); reuse the same sampled B.
     c(Distance = sqrt(sum(second^2)), Angle = acos(sum(first*second)/sqrt(sum(first^2)*sum(second^2)))*180/pi)
   }
   set.seed(seed)
   inputs <- matrix(stats::rnorm(samples*12,mean_input,sd_input),ncol=12,byrow=TRUE)
   simulated <- t(apply(inputs,1,evaluate))
-  observed <- apply(simulated,2,stats::sd)
+  observed <- apply(simulated,2,stats::sd) # Sample SD of q(p) estimates sigma_q without analytic derivatives.
   summary <- data.table::data.table(Quantity=c("Distance","Angle"),Unit=c("angstrom","degree"),
     AnalyticSU=analytic, MonteCarloSD=unname(observed),
     RelativeDifferencePercent=100*abs(analytic/observed-1), Samples=samples, Seed=seed)
