@@ -47,3 +47,10 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Local demo inputs and generated analysis outputs
+materials/clathrates
+minerals/chalcogens/
+minerals/revision_results/
+minerals/uncertainty_validation/
+minerals/crystract.html

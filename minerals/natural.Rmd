@@ -15,7 +15,7 @@ output:
 subtitle: ECon NN Diagnosis & Weighted CN Analysis
 params:
   cif_directory: "chalcogens"
-  validated_mapping: null
+  validated_mapping: "../minerals_database_codes.csv"
   output_dir: "revision_results"
   workers: 2
   unique_compositions: true
@@ -250,7 +250,7 @@ Using the `OpenMindat` package, we dynamically pull the most up-to-date IMA-appr
 
 Furthermore, because real CIFs report *empirical* analytical formulas (which include trace substitutions) and the IMA reports *ideal* formulas, an exact string match is impossible. Instead, we perform an **Essential Element Check**: the script extracts the elements from both formulas and drops any CIF that is missing a core elemental component required by the IMA (e.g., catching a Celestine CIF missing its Oxygen).
 
-**Note:** You must have a registered API token from Mindat.org to establish the connection.
+**Demo default:** The notebook reuses the saved mineral selection in `minerals_database_codes.csv` without contacting Mindat. To refresh the IMA validation, set `validated_mapping` to `null` and configure `MINDAT_API_TOKEN`.
 
 ```{r filter-ima}
 if (!is.null(params$validated_mapping)) {
