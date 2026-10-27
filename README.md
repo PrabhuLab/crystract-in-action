@@ -41,30 +41,30 @@ A large-scale structural analysis of naturally occurring Sulfides, Selenides, an
 Explore the standalone interactive Plotly visualizations exported directly from our automated workflows. **Click any link below to open the interactive chart:**
 
 ### 🧪 Materials Science: Clathrates
-* [Clathrate I Type: Lattice Parameter vs. Average Network Bond Length (Manuscript Figure 2))](materials/interactive_report_files/interactive_clathrate_plot.html)
+* [Clathrate I Type: Lattice Parameter vs. Average Network Bond Length (Manuscript Figure 2))](https://prabhulab.github.io/crystract-in-action/materials/interactive_report_files/interactive_clathrate_plot.html)
 
 ### 🪨 Mineralogy: Chalcogen Ores
 #### Global Visualization
-* [7.1 Pairwise Bond Lengths](minerals/plotly_exports/7_1_pairwise_lengths.html)
-* [7.2 Pairwise Bond Angles](minerals/plotly_exports/7_2_pairwise_angles.html)
+* [7.1 Pairwise Bond Lengths](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/7_1_pairwise_lengths.html)
+* [7.2 Pairwise Bond Angles](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/7_2_pairwise_angles.html)
 
 #### Coordination Number Analysis
-* [8.1 Bond Length vs ECon CN](minerals/plotly_exports/8_1_regular_cn.html)
-* [8.2 Bond Length vs Weighted CN](minerals/plotly_exports/8_2_weighted_cn_z.html)
-* [8.3 Weighted CN Sorted by Global Bond Length (Manuscript Figure 3)](minerals/plotly_exports/8_3_weighted_cn_len.html)
+* [8.1 Bond Length vs ECon CN](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/8_1_regular_cn.html)
+* [8.2 Bond Length vs Weighted CN](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/8_2_weighted_cn_z.html)
+* [8.3 Weighted CN Sorted by Global Bond Length (Manuscript Figure 3)](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/8_3_weighted_cn_len.html)
 
 #### Chalcogen-Specific Analysis (S, Se, Te Centers)
-* [9.1 Average Bond Lengths (Manuscript Figure 4)](minerals/plotly_exports/9_1_chalc_center_len.html)
-* [9.2 Normalized Bond Lengths (Manuscript Figure 4)](minerals/plotly_exports/9_2_chalc_center_norm_len.html)
-* [9.3 ECon Coordination Number](minerals/plotly_exports/9_3_chalc_center_cn.html)
-* [9.4 Total vs Specific Weighted CN (All Chalcogens) (Manuscript Figure 5)](minerals/plotly_exports/9_4_chalc_center_wcn.html)
-  * [9.4.1 Specific WCN: Sulfur (S)](minerals/plotly_exports/9_4_1_chalc_wcn_s.html)
-  * [9.4.2 Specific WCN: Selenium (Se)](minerals/plotly_exports/9_4_2_chalc_wcn_se.html)
-  * [9.4.3 Specific WCN: Tellurium (Te)](minerals/plotly_exports/9_4_3_chalc_wcn_te.html)
-* [9.5 Bond Angles](minerals/plotly_exports/9_5_chalc_center_angles.html)
+* [9.1 Average Bond Lengths (Manuscript Figure 4)](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/9_1_chalc_center_len.html)
+* [9.2 Normalized Bond Lengths (Manuscript Figure 4)](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/9_2_chalc_center_norm_len.html)
+* [9.3 ECon Coordination Number](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/9_3_chalc_center_cn.html)
+* [9.4 Total vs Specific Weighted CN (All Chalcogens) (Manuscript Figure 5)](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/9_4_chalc_center_wcn.html)
+  * [9.4.1 Specific WCN: Sulfur (S)](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/9_4_1_chalc_wcn_s.html)
+  * [9.4.2 Specific WCN: Selenium (Se)](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/9_4_2_chalc_wcn_se.html)
+  * [9.4.3 Specific WCN: Tellurium (Te)](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/9_4_3_chalc_wcn_te.html)
+* [9.5 Bond Angles](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/9_5_chalc_center_angles.html)
 
 #### Advanced Analysis
-* [11. Bond Length vs Angle Correlation (Neighbor Families) (Manuscript Figure 6)](minerals/plotly_exports/11_advanced_scatter.html)
+* [11. Bond Length vs Angle Correlation (Neighbor Families) (Manuscript Figure 6)](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/11_advanced_scatter.html)
 
 ---
 
@@ -139,3 +139,13 @@ rmarkdown::render("minerals/natural.Rmd", output_format = "html_document", param
 ## Monte Carlo validation notebook
 
 [Run the Jupyter validation notebook](notebooks/monte_carlo_validation.ipynb) to reproduce the synthetic uncertainty check in Supporting Information Section S2.3. It uses a Python 3 kernel to call Rscript; install the corrected CRYSTRACT source and data.table in R first. The notebook embeds the R validation function and includes the executed 4,000-draw results (seed 10). Cell-angle inputs and their standard uncertainties use degrees, internal propagation uses radians, and reported angle uncertainties use degrees.
+
+### Full-selection figure comparisons
+
+The mineral plots above use the reduced selection (592 records with retained bonds). The full-selection comparison contains 1,025 records with retained bonds.
+
+* [Figure S2: bond length and coordination](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/full_selection/8_3_weighted_cn_len.html)
+* [Figure S3a: chalcogen bond lengths](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/full_selection/9_1_chalc_center_len.html)
+* [Figure S3b: normalized chalcogen bond lengths](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/full_selection/9_2_chalc_center_norm_len.html)
+* [Figure S4: occupancy-weighted coordination](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/full_selection/9_4_chalc_center_wcn.html)
+* [Figure S5: bond lengths and angles](https://prabhulab.github.io/crystract-in-action/minerals/plotly_exports/full_selection/11_advanced_scatter.html)
