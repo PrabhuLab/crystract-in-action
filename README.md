@@ -135,3 +135,7 @@ rmarkdown::render("minerals/natural.Rmd", output_format = "html_document", param
 ```
 
 `validated_mapping` reuses the recorded mineral selection; it does not refresh IMA validation. Omit it only when refreshing that selection with a privately configured `MINDAT_API_TOKEN`. The reduced mineral analysis excludes publication titles containing `pressure` or `temperature`, retains the newest publication for each parsed composition, and breaks year ties by filename. Missing years sort last. Unparsed formulas remain separate, and distinct polymorphs are not distinguished by the composition key. Set `unique_compositions = FALSE` and use a separate output folder to reproduce the full selected dataset. Inspect the per-file status and unprocessed-file exports; do not interpret absent bond results as successful analyses.
+
+## Monte Carlo validation notebook
+
+[Run the Jupyter validation notebook](notebooks/monte_carlo_validation.ipynb) to reproduce the synthetic uncertainty check in Supporting Information Section S2.3. It uses a Python 3 kernel to call Rscript; install the corrected CRYSTRACT source and data.table in R first. The notebook embeds the R validation function and includes the executed 4,000-draw results (seed 10). Cell-angle inputs and their standard uncertainties use degrees, internal propagation uses radians, and reported angle uncertainties use degrees.

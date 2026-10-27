@@ -402,6 +402,8 @@ $$
 \frac{\partial z_c}{\partial\gamma}=cz_f\frac{\sin^2\gamma(\cos\gamma-\cos\alpha\cos\beta)-D\cos\gamma}{\sqrt D\sin^2\gamma}.
 $$
 
+Cell-angle values and their standard uncertainties are retained in degrees in `unit_cell_metrics`. The propagators convert them to radians internally; returned `Angle` and `AngleError` values are in degrees. A supplied covariance matrix must use radians for angular inputs, including radian-squared angular variances and consistently scaled cross-covariances.
+
 Cell angles and their standard uncertainties are converted to radians before differentiation, for example $\alpha_{\mathrm{rad}}=\alpha_{\mathrm{deg}}\pi/180$ and $\sigma_{\alpha,\mathrm{rad}}=\sigma_{\alpha,\mathrm{deg}}\pi/180$. Convert the final uncertainty by $\sigma_{\theta,\mathrm{deg}}=\sigma_{\theta,\mathrm{rad}}180/\pi$.
 
 The first-order angle gradients require nonzero bond lengths and $|C|<1$. At exactly $0$ or $180$ degrees they are singular; assigning zero uncertainty is not justified by these formulas. Near collinearity, validate the approximation by Monte Carlo propagation of the original independent inputs.
