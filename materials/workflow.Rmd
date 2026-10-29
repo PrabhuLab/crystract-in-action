@@ -36,6 +36,8 @@ source("../scripts/composition_key.R")
 
 This report documents the final, robust workflow for analyzing a curated dataset of categorized Clathrate I CIF files. The goal is to calculate the weighted average network bond distance for each structure and explore its relationship with the lattice parameter 'a'. The methodology incorporates a multi-step filtering pipeline to handle the complexities of real-world crystallographic data, such as site-occupancy disorder and non-physical "ghost" distances.
 
+The input collection contains 705 verified CIF files, including ICSD 217808 and 210075 retrieved on October 23, 2026. The `clathrates` directory mirrors the verified source collection; the export manifest identifies each analysed file.
+
 ### 1.1. Loading Categorized CIF Files
 
 The curated dataset is organized into subdirectories defining the specific filtering rules for the files within (e.g., `6c-16i-24k`). The script recursively finds all CIF files and maps each one to its structural category.
