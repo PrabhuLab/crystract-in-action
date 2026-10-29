@@ -32,6 +32,12 @@ data(covalent_radii, package = "crystract")
 source("../scripts/composition_key.R")
 ```
 
+## Interactive manuscript figures
+
+[Figure 2](#figure-2)
+
+The interactive plots are embedded below. Hover over points to inspect the contributing records; use the Plotly controls to zoom or reset the view.
+
 ## 1. Objective and Methodology
 
 This report documents the final, robust workflow for analyzing a curated dataset of categorized Clathrate I CIF files. The goal is to calculate the weighted average network bond distance for each structure and explore its relationship with the lattice parameter 'a'. The methodology incorporates a multi-step filtering pipeline to handle the complexities of real-world crystallographic data, such as site-occupancy disorder and non-physical "ghost" distances.
@@ -194,6 +200,8 @@ if (exists("removed_ghosts_summary") && nrow(removed_ghosts_summary) > 0) {
   cat("No 'ghost' distances were detected during the analysis.")
 }
 ```
+
+<span id="figure-2"></span>
 
 ## 5. Final Results
 

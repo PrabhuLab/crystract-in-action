@@ -26,6 +26,12 @@ params:
 knitr::opts_chunk$set(echo = TRUE, message = TRUE, warning = FALSE)
 ```
 
+## Interactive manuscript figures
+
+[Figure 3](#figure-3) · [Figure 4(a)](#figure-4a) · [Figure 4(b)](#figure-4b) · [Figure 5](#figure-5) · [Figure 6](#figure-6)
+
+The interactive plots are embedded below. Hover over points to inspect the contributing records; use the Plotly controls to zoom or reset the view.
+
 ## 1. Introduction
 
 This workflow performs a targeted, large-scale crystallographic analysis of Sulfides, Selenides, and Tellurides. By utilizing the **ECon (Effective Coordination Number)** bonding algorithm within the highly parallelized `crystract` extraction pipeline, we calculate fundamental geometric metrics such as bond distances, normalized bond distances (divided by the sum of atomic radii), bond angles, and coordination numbers (CN) across thousands of parsed `.cif` files.
@@ -1077,6 +1083,8 @@ saveWidget(plt82, file = file.path(export_dir_plotly, "8_2_weighted_cn_z.html"),
 plt82
 ```
 
+<span id="figure-3"></span>
+
 ### 8.3 Weighted CN (Sorted by Global Bond Length)
 
 Re-ordering the Y-axis by the overall median bond length of the element helps rapidly identify which elements form the smallest/tightest coordination environments versus large, highly coordinated cation sites.
@@ -1130,6 +1138,8 @@ Filtering the entire dataset to place the Chalcogens (Sulfur, Selenium, Telluriu
 targets <- c("S", "Se", "Te")
 df_center_chalc <- final_bonds_data[Element1 %in% targets]
 ```
+
+<span id="figure-4a"></span>
 
 ### 9.1 S, Se, Te: Bond Lengths
 
@@ -1197,6 +1207,8 @@ ggplot(agg_center, aes(x = Element2, y = Element1, fill = MeanDist)) +
   theme(axis.text = element_text(size = 14)) +
   coord_fixed()
 ```
+
+<span id="figure-4b"></span>
 
 ### 9.2 S, Se, Te: Normalized Bond Lengths (Distance / Sum of Radii)
 
@@ -1330,6 +1342,8 @@ ggplot(agg_center_cn, aes(x = Element2, y = Element1, fill = MeanCN)) +
   theme(axis.text = element_text(size = 14)) +
   coord_fixed()
 ```
+
+<span id="figure-5"></span>
 
 ### 9.4 S, Se, Te: Weighted CN (Special Aggregation)
 
@@ -1717,6 +1731,8 @@ ggplot(violin_data, aes(x = reorder(Element1, Distance), y = Distance)) +
   theme(axis.text = element_text(size = 14)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
+
+<span id="figure-6"></span>
 
 ## 11. Advanced: Length vs Angle (Grouped by Neighbor Family)
 
