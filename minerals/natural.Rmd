@@ -17,7 +17,7 @@ params:
   cif_directory: "chalcogens"
   validated_mapping: "../minerals_database_codes.csv"
   output_dir: "revision_results"
-  workers: 2
+  workers: 1
   unique_compositions: true
   run_algorithm_comparison: false
 ---

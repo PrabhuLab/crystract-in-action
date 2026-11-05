@@ -51,12 +51,8 @@ export_mineral_publication_figures <- function(plots, output_dir) {
   f3 <- compact_color_ticks(f3)
   f4a <- compact_color_ticks(f4a)
   f4b <- compact_color_ticks(f4b)
-  figure4_guides <- ggplot2::guides(
-    color=ggplot2::guide_colorbar(direction="vertical",title.position="top",
-      barheight=grid::unit(24,"mm"),barwidth=grid::unit(3,"mm"),order=1),
-    size=ggplot2::guide_legend(ncol=1,title.position="top",order=2))
-  f4a <- f4a + ggplot2::theme(legend.position="right",legend.box="vertical") + figure4_guides
-  f4b <- f4b + ggplot2::theme(legend.position="right",legend.box="vertical") + figure4_guides
+  f4a <- f4a + compact_guides
+  f4b <- f4b + compact_guides
   f4 <- gridExtra::arrangeGrob(f4a,f4b,ncol=1)
   f5 <- plots$p94 + style + ggplot2::labs(title=wrap_title(plots$p94$labels$title),subtitle="n = distinct CIF records; subsets may overlap") +
     ggplot2::theme(axis.text.x=ggplot2::element_text(size=8,angle=90,vjust=.5,hjust=1),
